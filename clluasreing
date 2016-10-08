@@ -1,0 +1,85 @@
+# -*- coding: UTF-8 -*-     
+import numpy as np
+import sys;
+reload(sys);
+sys.setdefaultencoding("utf8")
+
+#初始化语义矩阵S并返回		
+def init_array(sent1,sent2,l1,l2):
+	S=np.zeros((l1,l2))
+	for i in xrange(l1):
+		for j in xrange(l2):
+			a=sent1[i]
+			b=sent2[j]
+			S[i][j]= a.dot(b)/(((a.dot(a)**0.5) * (b.dot(b)**0.5)))
+	return S	
+	
+def cos(a,b):
+    return a.dot(b)/(((a.dot(a)**0.5) * (b.dot(b)**0.5)))
+
+def init_array1(sent1,sent2,l1,l2):
+	array1 = np.asarray(sent1)
+	array2 = np.asarray(sent2)
+	def f(c):
+		def f1(vec):
+			print vec,c
+			r=vec.dot(c)/(np.sqrt((vec.dot(vec)) * np.sqrt(c.dot(c))))
+			return r
+		return np.frompyfunc(f1, 1, 1)
+	S=np.asarray([f(sent1[i])(sent2) for i in range(l1)])
+	return S
+	
+#找到矩阵中最大的元素及其x,y
+def find_biggest(S):
+	sim=np.max(S)
+	temp=np.where(S==sim)
+	x=temp[0][0]
+	y=temp[1][0]
+	return sim,x,y
+
+#将矩阵S中(x,y)对应元素所在行列的所有值置0
+def del_xy(x,y,S):
+	S[x]=0
+	for j in xrange(S.shape[0]):
+		S[j][y]=0	
+	#S[row][y]=0 for row in range(S.shape[0])
+
+	
+#计算两个句子的语义Jaccard分子分母，返回分子除分母	
+def calc_nd(a,S):
+	sim,x,y=find_biggest(S)
+	numerator=0
+	while(sim>a):
+		numerator+=sim
+		del_xy(x,y,S)
+		sim,x,y=find_biggest(S)
+	denominator=abs(sum(sum(S)))
+	denominator+=abs(numerator)
+	#print S,sum(S),numerator,denominator
+	return numerator/denominator
+
+#功能函数	
+def jaccard_sim(a,sent1,sent2):
+	l1=len(sent1)
+	l2=len(sent2)
+	S=init_array(sent1,sent2,l1,l2)
+	#print S
+	result=calc_nd(a,S)
+	#print result
+	return result
+
+#if _name_ =='_main_':
+#	sent1=[np.array([1,1,3]),np.array([4,2,-2]),np.array([1,1,1])]
+#	sent2=[np.array([2,4,6]),np.array([0,10,12]),np.array([0,2,6])]
+#	a=0.8
+#	print jaccard_sim(a,sent1,sent2)
+		
+	
+	
+	
+	
+	
+	
+	
+	
+	
