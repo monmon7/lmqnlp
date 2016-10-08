@@ -1,0 +1,154 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Aug 19 15:18:40 2016
+
+@author: Administrator
+"""
+
+#################################
+#   得到基于所有评论的词典mapping   #
+#################################
+#encoding=utf-8
+import sys;
+reload(sys);
+sys.setdefaultencoding("utf8")
+def pro(dataff) :
+    f1=open(dataff,'r')#!!!!换电影的时候需要改
+    
+    source=(f1.readlines())[1:]
+    l1=source[0].split(' ')
+    word=[]
+    vec=[]#6296个list,每个list100个str类型的数据
+    for item in source:
+        word.append((item.split(' ')[0]))
+        vec.append(item.split(' ')[1:])
+    mapping={}#必须有这个，不然会出现NameError
+    mapping=dict(zip(word,vec))
+    print '11111111111111111'
+    #print mapping
+    f1.close()
+    return mapping
+def dbsc(fin,fout,ff) :
+    mapping = pro("D:\\zmm\\tools_by_zmm\\tools_to_multi_files\\all_dataSet_split.txt.vec")#!!!!换电影的时候需要改
+    ##############
+    # wuyifan jieba分词  #
+    #############
+    import jieba
+    import sys;
+    reload(sys);
+    sys.setdefaultencoding("utf8")
+    input_file1=open(fin,'r') #!!!!!!!!!!!!!!!!!!!!!!!!!!!改
+    output_file1=open(fout,'w')#！！！！！！！！！！！！！！！！改 删
+    word_list=[]
+    for item in input_file1:
+        seg_list=jieba.cut(item)
+        s=list(seg_list)
+        word_list.append(s)
+    for words in word_list:
+        output_file1.write(" ".join(words))
+    input_file1.close()
+    output_file1.close()  
+    ####################################
+    #    得到吴亦凡的评论片段对应的词向量   #
+    ###################################
+    f2=open(fout,'r') #！！！！！！！！！！！！！！！改 删
+    source2=f2.readlines()
+    data=[]
+    #print source[100].split(' ')[0]
+    #print mapping[source[100].split(' ')[0]]
+    fty=open("TingYong.txt",'r')
+    ty_words=[]
+    for item in fty.readlines():
+    	ty_words.append(item.strip('\n'))
+    for item in source2:
+        words=item.split(' ')	
+        voc=[]
+        for w in words:
+            if w in ty_words:
+                print w,words
+            if mapping.get(w,None) and w not in ty_words:
+                voc.append(mapping[w])
+        data.append(voc)
+        if voc==[]:
+            print item
+    
+    f2.close()
+    
+    #####################
+    #     dbscan       #
+    ####################
+    from numpy import *
+    from dbscan_clustering import *
+    import numpy as np
+    import time
+    from numpy import random
+    
+    ## step 1: load data
+    print "step 1: load data..."
+    dataSet = []
+    empty_count=0
+    flag=[]
+    count=0
+    for line in data:
+        #lineArr = line.strip().split('\t').split('\n')
+        lineArrs=[]
+        if line==[]:
+            #lineArrs.append(random.random(size=(1,100)))#随机生成正太分布的100维向量，貌似有问题，可以尝试改改
+            empty_count+=1
+            flag.append(count)    
+        else:
+            for item in line:
+                #print item
+                lineArr=np.array([float(item[0])])
+                for item1 in item[1:]:
+                    i=float(item1.strip("\n"))
+                    lineArr=np.hstack((lineArr,i))
+                lineArrs.append(lineArr)
+            dataSet.append(lineArrs)
+        count+=1
+    print "empty_count",empty_count
+    #for i in range(len(dataSet)):
+        #print "i:",i,"list:",type(dataSet[i])
+    ## step 2: clustering...
+    print "step 2: clustering..."
+    #allPoints = getRandomData(1, 50, 100)
+    #####################
+    #     准备数据       #
+    ####################
+    #encoding=utf-8
+    import sys;
+    reload(sys);
+    sys.setdefaultencoding("utf8")
+    source_file=open(fin,'r') #！！！！！！！！！！！！改
+    dict1={}#其中是 下标：中文片段 的字典
+    i=0
+    content=source_file.readlines()
+    for item in range(len(content)):
+    	pose=True
+    	for j in flag:
+    		if j==item:
+    			pose=False
+    			break
+    	if pose:
+             dict1[i]=content[item]
+             i+=1
+    
+    print "没有对应向量的片段的下标：",flag
+    print "中文片段的个数：",len(dict1.values())
+    
+    #sfDistance,meanDistance
+    dbscan(dataSet,dict1,0.7,1,ff)
+    print "done..."
+
+
+#do('dict_appearance_C.txt','_spli1.txt','t1.txt') 
+#do('dict_yanji_C.txt','_split2.txt','t2.txt') 
+#do('dict_taici_C.txt','_split3.txt','t3.txt') 
+#do('dict_xingge_C.txt','_split4.txt','t4.txt') 
+#do('dict_biaoqing_C.txt','_split15.txt','t5.txt') 
+#do('dict_xinli_C.txt','_spli6t.txt','t6.txt') 
+
+#if __name__ == "__main__":
+#       import profile
+#       profile.run("do('dict_xinli_C.txt','_spli6t.txt','f1_1.txt') ")
+
