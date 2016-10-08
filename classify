@@ -1,0 +1,198 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Aug 10 13:45:54 2016
+
+@author: Administrator
+"""
+
+from jpype import *
+from Jaccard_sim1 import *
+import numpy as np
+import os
+import re
+import jieba
+
+
+
+f1 = open('D:\\CiDian_tools\\dmAN.txt','r') #提取出的片段文件
+f2 = open('D:\\CiDian_tools\\all_dataSet_split.txt.vec','r') #词向量文件
+fdict0 = open('D:\\CiDian_tools\\dict_appearance_NEW.txt','r') #角度分类词典文件
+fdict1 = open('D:\\CiDian_tools\\dict_biaoqing_NEW.txt','r') #角度分类词典文件
+fdict2 = open('D:\\CiDian_tools\\dict_taici_NEW.txt','r') #角度分类词典文件
+fdict3 = open('D:\\CiDian_tools\\dict_xingge_NEW.txt','r') #角度分类词典文件
+fdict4 = open('D:\\CiDian_tools\\dict_xinli_NEW.txt','r') #角度分类词典文件
+fdict5 = open('D:\\CiDian_tools\\dict_yanji_NEW.txt','r') #角度分类词典文件
+
+listf = ['D:\\CiDian_tools\\dict_appearance_NEW.txt','D:\\CiDian_tools\\dict_biaoqing_NEW.txt','D:\\CiDian_tools\\dict_taici_NEW.txt','D:\\CiDian_tools\\dict_xingge_NEW.txt','D:\\CiDian_tools\\dict_xinli_NEW.txt','D:\\CiDian_tools\\dict_yanji_NEW.txt']
+listf0 = ['D:\\CiDian_tools\\dict_appearance_C.txt','D:\\CiDian_tools\\dict_biaoqing_C.txt','D:\\CiDian_tools\\dict_taici_C.txt','D:\\CiDian_tools\\dict_xingge_C.txt','D:\\CiDian_tools\\dict_xinli_C.txt','D:\\CiDian_tools\\dict_yanji_C.txt']
+#################################
+#   得到基于所有评论的词典mapping   #
+#################################
+#encoding=utf-8
+import sys;
+reload(sys);
+sys.setdefaultencoding("utf8")
+
+source=(f2.readlines())[1:]
+l1=source[0].split(' ')
+word=[]
+vec=[]#6296个list,每个list100个str类型的数据
+for item in source:
+    word.append((item.split(' ')[0]))
+    vec.append(item.split(' ')[1:])
+mapping={}#必须有这个，不然会出现NameError
+mapping=dict(zip(word,vec))
+
+print '分类词典词向量匹配中...'
+
+
+
+for i in range(6):
+    names = locals()
+    names['dict'+str(i)]={}
+    subkey = []
+    with open(listf[i], 'r') as f:
+        for item in f.readlines() :  
+            if item != '' :
+                subkey.append(item.strip('\n'))
+    names['dict'+str(i)] = dict([(key, mapping[key]) for key in subkey])
+    
+print '分类词典词向量匹配完毕'    
+print '片段分类...'  
+ 
+#startJVM(getDefaultJVMPath(),"-Djava.class.path=D:\lmqnlp\hanlp1\hanlp-1.2.9.jar;D:\lmqnlp\hanlp1", "-Xms1g", "-Xmx1g")
+#HanLP = JClass('com.hankcs.hanlp.HanLP') 
+a=0.5     
+words = ['长相','外观','颜值','演技','演出','台词','声音','性格','眼神','表情','笑cry','哆A梦吃惊','没有一句台词','没有一句话','说一句话','没有台词']
+for li in f1.readlines() :   #给片段分词
+    if li.strip('\n') in words :
+        continue
+    l = []
+    flag = 0
+    seg_list = list(jieba.cut(li.strip('\n')))
+    cla = [] 
+    for it in seg_list :
+        it = it.encode('utf-8')
+        l.append(it)
+#    listt = HanLP.segment(li.strip('\n').decode('utf-8')).toString().strip('[').strip(']').split(',')
+
+    arraylist = []
+    for i in l :
+        
+        if i in mapping.keys() :
+            
+            arraylist.append(np.array(map(float,mapping.get(i))))
+            for j in range(6):  #看各分类词典是否包含该词
+                names0 = locals()   
+                if i in names0['dict'+str(j)].keys() and j not in cla:
+                    with open(listf0[j], 'a') as f:
+                        f.write(li)
+                    flag = 1 
+                    cla.append(j)
+                    
+            '''
+            若片段不包含在任何分类词典内 则计算相似度分类
+            '''
+            if flag == 0 and i == l[-1] :
+               # print i,'sim'
+                for p in range(6):
+                    flag0 = 0
+                    names1 = locals()
+                    m=0
+                
+                    for item in names1['dict'+str(p)].values() :
+                        m=m+1
+                        if flag0 == 1:
+                          
+                            break
+                
+#                        temp = []
+#                        temp.append(np.array(map(float,item)))
+                        temp = np.array(map(float,item))
+                        z=0
+                        for ar in arraylist :
+                            z=z+1 
+                            if cos(temp,ar) >=0.75 :
+                                
+                                with open(listf0[p], 'a') as f:
+                                    f.write(li)  
+                                flag0 = 1
+                                
+                                break 
+
+
+
+#
+#'''
+#各个角度类内标签tf计算机提取
+#'''
+#import os
+#clas = ['外观','表情神态','台词','性格气质','心理','演技']
+#i = 0
+#fd = open('D:\\lmqnlp\\HanLP\\emotion_Dict1.txt','r')
+#fl = []
+#for item in fd :
+#    fl.append(item.strip('\n'))
+#    
+#for root, dirs, files in os.walk('D:\\CiDian_tools\\zhy'):
+#    for fn in files:
+#        ff = open ('D:\\CiDian_tools\\zhy\\'+fn,'r')
+#        with open('D:\\CiDian_tools\\zhy\\zhy.txt', 'a') as f:
+#            f.write('\n'+clas[i]+':'+'\n')
+#        listTag = []
+#        listCount = []
+#        temp = []
+#        for lin in ff.readlines() :
+#            print lin
+#            if lin.strip('\n') in fl:
+#                continue 
+#            listTag.append(lin.strip('\n'))
+#        for item in listTag :
+#            unit = []
+#            if item not in temp:
+#                unit.append(item)
+#                unit.append(listTag.count(item))
+#                listCount.append(unit)
+#                temp.append(item)
+#        listCount.sort(key=lambda x:x[1],reverse=True)
+#            
+#        for j in range(10) :
+#            with open('D:\\CiDian_tools\\zhy\\zhy.txt', 'a') as f:
+#                f.write(listCount[j][0]+'  TF:'+str(listCount[j][1])+'\n')
+#        i = i+1
+#fd.close()
+#
+#
+#'''
+#依据情感词典给tag打情感倾向值
+#'''
+#import os
+#import jieba
+#fdd = open('D:\\CiDian_tools\\edict.txt','r')
+#el = []
+#
+#for item in fdd :
+#    e =[]
+#    e.append(item.strip('\n').split('\t')[0])
+#    e.append(int(item.strip('\n').split('\t')[1]))
+#    el.append(e)
+#l1 = [x[0] for x in el]
+#l2 = [x[1] for x in el]
+#    
+#for root, dirs, files in os.walk('D:\\CiDian_tools\\zhy'):
+#    for fn in files:
+#        ff = open ('D:\\CiDian_tools\\zhy\\'+fn,'r')
+#        for lin in ff.readlines() :
+#            s = 0
+#            seg_list = list(jieba.cut(lin.strip('\n'),cut_all=True))
+#            for i in seg_list :
+#                if i.encode('utf-8') in l1 :
+#                    s = s + l2[l1.index(i.encode('utf-8'))]
+#            with open('D:\\CiDian_tools\\zhy\\EEE'+fn, 'a') as f:
+#                f.write(lin.strip('\n')+'\t'+str(s)+'\n')
+#    
+#fdd.close()
+#
+
+
+
