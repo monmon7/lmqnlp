@@ -1,0 +1,242 @@
+from __future__ import division
+import sys, os
+import random
+from collections import defaultdict
+from Jaccard_sim1 import *
+
+
+#生成list类型的点pointCount个，maxNum是最大值
+def getRandomData(minNum, maxNum, pointCount):
+    if pointCount <= 0:
+        pointCount = 50
+    if minNum > maxNum:
+        minNum, maxNum = maxNum, minNum
+    if minNum == maxNum and minNum != 0:
+        minNum = maxNum / 2;
+    allPoints = []
+    i = 0
+    while i < pointCount:
+        tmpPoint = [random.randint(minNum, maxNum), random.randint(minNum, maxNum)]
+        if tmpPoint not in allPoints:
+            allPoints.append(tmpPoint)
+            i += 1
+    return allPoints
+
+
+def distance(vec1, vec2):
+    return ((vec1[0] - vec2[0]) ** 2 + (vec1[1] - vec2[1]) ** 2) ** 0.5
+	
+def cos(vector1,vector2):
+    dot_product = 0.0;
+    normA = 0.0;
+    normB = 0.0;
+    for a,b in zip(vector1,vector2):
+        dot_product += a*b
+        normA += a**2
+        normB += b**2
+    #print "a",a,"b",b
+    #print "normA",normA,"normB",normB #如果用random.random(size(1,100))得到的结果不能用来处理这个数据
+    if normA == 0.0 or normB==0.0:
+        return None
+    else:
+        return dot_product / ((normA*normB)**0.5)
+
+#计算最小距离
+def sfDistance(list1, list2):
+    distance=100000
+    for v1 in list1[:-2]:
+        for v2 in list2[:-2]:
+            #print v1,v2,type(v1),type(v2)
+            d=1-cos(v1,v2)
+            if d<distance:
+                distance=d		
+    return distance
+
+#计算平均距离		
+def meanDistance(list1,list2):
+	d=0
+	count=0
+	distance=0
+	for v1 in list1[:-2]:
+		for v2 in list2[:-2]:
+			d=1-cos(v1,v2)
+			distance+=d
+			count+=1
+	distance=distance/count
+	return distance
+
+
+#看两个点是否相等
+def compare_points(point1,point2):
+    if(len(point1)!=len(point2)):
+        return False
+    for i in range(len(point1)-2):
+        if point1[i] is not point2[i]:
+            return False
+    return True
+
+#看这个点是否在list里面
+def check_if_in(point,points):
+    for item in points:
+        if compare_points(point,item):
+            return True
+    return False
+
+def show_cluster_result_num(cluster):
+    for item in range(len(cluster)):
+        print item,"~~",len(cluster[item])
+
+def choose_core(class_list):
+	max=0
+	core_point=[]
+	for point1 in class_list:
+		total_sim=0
+		for point2 in class_list:
+			if point1!=[] and point2!=[]:
+				total_sim+=jaccard_sim(0.7,point1[:-2], point2[:-2]) 
+		if total_sim>max:
+			max=total_sim
+			core_point=point1
+	return core_point
+		
+#minDistance是最小距离，相当于eps,minPoint是阈值MinPs
+def dbscan(allPoints,dict1,minDistance, minPointCount,ff):
+    corePoints = []#核心点
+    otherPoints = []#不是核心也不是噪声
+    noNoisePoints = []#非噪声点
+    borderPoints= []#边界点
+    noisePoints = []#噪声点
+    gama=0.8
+    
+    i=0
+    for point in allPoints:
+        point.append(i)
+        point.append(0)
+        i+=1  
+    i=0
+    count_list=[0]
+    count_list=count_list*len(allPoints)
+    for point in allPoints:#初筛     
+        count = 0#分类打标签用的
+        #遍历其他点找小于阈值距离的	
+        #print i
+        j=0
+        for otherPoint in allPoints[i+1:]:
+            if jaccard_sim(gama,point[:-2], otherPoint[:-2]) >= minDistance:
+                count_list[i]=count_list[i]+1
+                count_list[j]=count_list[j]+1
+                #print meanDistance(point, otherPoint)
+                j=j+1
+        i=i+1        
+    for i in range(len(allPoints)):#初筛	
+        if count_list[i] >= (minPointCount + 1):
+              corePoints.append(allPoints[i])
+              noNoisePoints.append(allPoints[i])
+            
+        else:
+              otherPoints.append(allPoints[i])
+            
+    print "初筛结束"
+    print "核心点的个数：",str(len(corePoints))
+    for point in otherPoints:#遍历其他 中的点，筛出边界点
+        for corePoint in corePoints:
+            dis=jaccard_sim(gama,point[:-2], corePoint[:-2])
+            #print dis
+            if dis>= minDistance:
+                borderPoints.append(point)
+                noNoisePoints.append(point)
+                break
+			
+    print "筛出了边界点："+str(len(borderPoints))+"个"
+	
+    print len(borderPoints),len(corePoints)
+    i=0
+    for point in allPoints:#遍历 找出噪声点    
+        #print i    
+        if check_if_in(point,corePoints)==False and check_if_in(point,borderPoints)==False:
+            #print point[-2],dict1[point[-2]]
+            noisePoints.append(point)
+        i=i+1
+    print "找出了噪声点：个"+str(len(noisePoints))
+    
+    label = 0
+    i=0
+    for point in corePoints:
+        if point[-1] == 0:
+            label += 1
+            point[-1] = label#给核心点打上标签
+        #print i
+        for noNoisePoint in noNoisePoints:#非噪声点包括边界点和核心点
+            if noNoisePoint[-1] == 0:
+                dist = jaccard_sim(gama,point[:-2], noNoisePoint[:-2])#计算核心点和非噪声点的距离
+                if dist >= minDistance :#
+                    noNoisePoint[-1] = point[-1]#把边界点归到某个标签里
+        i=i+1
+ 
+    print "融合两个核心点"
+            
+    cluster=defaultdict(lambda: [[]])#创建默认格式的list
+    for point in noNoisePoints:#point的格式：[x,y,class_label]
+        cluster[point[-1]].append(point)
+    '''
+    lmq gai
+    '''
+    if str(len(corePoints)) == '0':
+        for point in noisePoints:
+            label += 1
+            point[-1] = label#给核心点打上标签
+        for point in noisePoints:#point的格式：[x,y,class_label]
+            cluster[point[-1]].append(point)
+    '''
+    lmq gai
+    '''
+    show_cluster_result_num(cluster)
+    
+    print "完了"
+	########################
+	#       输出数据       #
+	######################
+    print "writing...."
+    #print cluster
+    f=open(ff,'w')
+#    wa="minDistance:"+str(minDistance)+"   minPointCount:"+str(minPointCount)+"  jaccard_sim"+"\n"
+#    wb="核心点的个数："+str(len(corePoints))+"筛出了边界点："+str(len(borderPoints))+"个"+"    找出噪声点"+str(len(noisePoints))+"个"+"    找出非噪声点"+str(len(noNoisePoints))+"个"+"\n"
+#    f.write(wa)
+#    f.write(wb)
+#    
+#    f.write("1111111111111111/n")
+    for item in range(len(cluster)):
+    	for point in cluster[item]:
+    		if point!=[]:
+    			a=str(item)+"\t"+str(point[-2])+"\t"+str(dict1[point[-2]])
+    			f.write(a)
+    
+    print "1111写完了"
+
+        
+#    f.write("222222222222222222/n")
+#    wa="所有类的核心点：\n"
+#    f.write(wa)
+#    for i in range(len(cluster)):
+#    	if cluster[i]!=[[]]:
+#    		core=choose_core(cluster[i])
+#    		#print core
+#    		b=str(core[-1])+"\t"+str(dict1[core[-2]])+"\n"
+#    		f.write(b)
+    	
+#    f.write("33333333333333333333")	
+#    wa="噪声点："+"\n"
+#    f.write(wa)
+#    for item in range(len(noisePoints)):
+#    	if noisePoints[item]!=[]:
+#    		b=str(item)+"  "+str(noisePoints[item][-2])+"  "+str(dict1[noisePoints[item][-2]])+"\n"
+#    		f.write(b)
+#    wa="核心点："+"\n"
+#    f.write(wa)
+#    for item in range(len(corePoints)):
+#    	if corePoints[item]!=[]:
+#    		a=str(item)+"  "+str(corePoints[item][-2])+"  "+str(dict1[corePoints[item][-2]])+"\n"
+#    		f.write(a)
+    f.close()
+    print "写完了\n"
+    return 0   
