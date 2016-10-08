@@ -1,0 +1,79 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Aug 10 11:13:07 2016
+
+@author: LMQ
+"""
+
+f1 = open('D:\\CiDian_tools\\all_dataSet_split.txt.vec','r') #词向量文件
+
+
+def di(fin,fout) :
+    f2 = open(fin,'r') #词典文件
+    f3 = open(fout,'a') #更新词典
+    listDict = []
+    for count in range(223264):
+        i=f1.readline()
+        list1=i.split(' ')
+        if(list1[0]!=[]):
+            listDict.append(list1[0])
+    
+    print len(listDict)
+    
+    for line in f2.readlines() :
+        if line.strip('\n') in listDict :
+            f3.write(line)
+    
+    f2.close()
+    f3.close()
+
+
+#di('D:\\CiDian_tools\\dict_yanji.txt','D:\\CiDian_tools\\dict_yanji_NEW.txt') 
+#di('D:\\CiDian_tools\\dict_xingge.txt','D:\\CiDian_tools\\dict_xingge_NEW.txt') 
+#di('D:\\CiDian_tools\\dict_xinli.txt','D:\\CiDian_tools\\dict_xinli_NEW.txt') 
+#di('D:\\CiDian_tools\\dict_biaoqing.txt','D:\\CiDian_tools\\dict_biaoqing_NEW.txt') 
+#di('D:\\CiDian_tools\\dict_appearance.txt','D:\\CiDian_tools\\dict_appearance_NEW.txt') 
+di('D:\\CiDian_tools\\dict_taici.txt','D:\\CiDian_tools\\dict_taici_NEW.txt') 
+f1.close()
+
+=================================================================================
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Sep 26 13:59:20 2016
+
+@author: Administrator
+"""
+'''
+处理原始数据 提取评论
+'''
+
+import sys;
+reload(sys);
+sys.setdefaultencoding("utf8")
+f2=open('D:\\lmqnlp\\HanLP\\julyNEW.txt','w')
+data=[]
+
+with open('D:\\lmqnlp\\HanLP\\july.dat','r') as f1:
+    #line = f.readline()
+    #print(line.rstrip('\n'))
+    #print
+    for count in range(1430):
+        i=f1.readline()
+        list1=i.split(',')
+        if(list1[2:-1]!=[]):
+            data.append(list1[2:-1])
+        #print count
+
+print len(data)
+
+for i in data:
+    f2.write(i[0]+'\n')
+
+f1.close()
+f2.close()
+
+
+
+
+
+
