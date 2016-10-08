@@ -1,0 +1,169 @@
+#! usr/bin/python
+# -*- coding:utf-8 -*-
+from jpype import *
+import os
+import re
+import chardet
+from getTag import gt
+
+
+startJVM(getDefaultJVMPath(),"-Djava.class.path=D:\lmqnlp\hanlp1\hanlp-1.2.9.jar;D:\lmqnlp\hanlp1", "-Xms1g", "-Xmx1g")
+HanLP = JClass('com.hankcs.hanlp.HanLP')
+
+## 中文分词
+#print(HanLP.segment(u'井柏然表现真的太好了，小井真出色，鹿晗棒棒哒！').toString())
+#listt = HanLP.segment(u'tfboys让我感动').toString().strip('[').strip(']').split(',')
+#l = []
+#for item in listt :
+#    l.append(item.split('/')[0].encode('utf-8'))
+#
+# 依存句法分析
+#print(HanLP.parseDependency(u'井柏然表现真的太好了，小井真出色，鹿晗棒棒哒！').toString())
+
+
+'''
+【每次新添人物名称至分词词典mydict时，先删除bin文件！！！改这个 D:\lmqnlp\HanLP-1.2.9\data\dictionary\person\nrf】
+文件读写part
+fr——data源文件
+fw——句法依存分析结果输出至该文件
+fw1——提取需要的4个部分（id word 关系号 关系）输出至该文件
+fwDict——人物对象名称字典
+fName——存储输出结果文件名 方便调用getTag时传参
+femotion-- 情感词典 方便过滤中立词
+'''
+#fw1 = open('D:\\lmqnlp\\HanLP\\output.txt','a')  
+fr = open('D:\\lmqnlp\\HanLP\\dmbjNEW.txt','r')
+#fw = open('D:\\lmqnlp\\HanLP\\1_2.txt','a')
+fwDict = open('D:\\lmqnlp\\HanLP\\dictLH.txt','r')
+fwDict1 = open('D:\\lmqnlp\\HanLP\\dictJBR.txt','r')
+fwDict2 = open('D:\\lmqnlp\\HanLP\\dictMSC.txt','r')
+fName = 'D:\\lmqnlp\\HanLP\\LHtemp.txt'
+fName1 = 'D:\\lmqnlp\\HanLP\\JBRtemp.txt'
+fName2 = 'D:\\lmqnlp\\HanLP\\MSCtemp.txt'
+femotion = open('D:\\lmqnlp\\HanLP\\emotion_Dict0.txt','r')
+
+elist = []   #存放情感词词表
+for item in femotion.readlines() :
+    elist.append(item.strip('\n'))
+
+print '开始提取标签...'
+
+listDict =[] #存放目标人物名称列表
+listDict1 =[]
+listDict2 =[]
+for item in fwDict.readlines() :
+    listDict.append(item.strip('\n'))
+for item in fwDict1.readlines() :
+    listDict1.append(item.strip('\n'))
+for item in fwDict2.readlines() :
+    listDict2.append(item.strip('\n'))
+
+for count in range(5310) :
+    line = fr.readline()
+    list2d = []
+    list1d = []
+    t = []
+    t1 = []
+    t2 = []
+    flag = 0
+    flag1 = 0
+    flag2 = 0
+    linewrite0 = HanLP.parseDependency(line.strip('\n').decode('utf-8'))
+    lineData = linewrite0.toString().encode('utf-8').split('\n')
+    for l in lineData:
+        if l.strip() == '':
+           continue
+        if l.split('\t')[7] == "标点符号" :
+           continue
+        list1d.append(l.split('\t')[0])
+        list1d.append(l.split('\t')[1])
+        list1d.append(l.split('\t')[6])
+        list1d.append(l.split('\t')[7])
+        list2d.append(list1d)
+        if l.split('\t')[1] in listDict and l.split('\t')[1] not in t :
+           flag = 1
+           t.append(l.split('\t')[1])
+        if l.split('\t')[1] in listDict1 and l.split('\t')[1] not in t1:
+           flag1 = 1
+           t1.append(l.split('\t')[1])
+        if l.split('\t')[1] in listDict2 and l.split('\t')[1] not in t2:
+           flag2 = 1
+           t2.append(l.split('\t')[1])
+        list1d = []
+        
+    if flag == 1 :
+        print t
+        gt(list2d,t,fName)
+    if flag1 == 1 :
+        print t1
+        gt(list2d,t1,fName1)
+    if flag2 == 1 :
+        print t2
+        gt(list2d,t2,fName2)
+
+
+fr.close()
+fwDict.close()
+femotion.close()
+
+def guolv(fnn,sf,elist) :   
+    print '开始逐步过滤...'
+    f0 = open(fnn,'r')
+    fF = open(sf,'a')
+    #lines=[]
+    #for count in range(40000): 
+    #    lines.append(f0.readline())
+    lines = f0.readlines()
+    stopDict = open('D:\\lmqnlp\\HanLP-1.2.9\\data\\dictionary\\stopwords.txt','r')
+    stoplist = [] #建立停用词列表
+    for item in stopDict.readlines() :
+        stoplist.append(item.strip('\n'))
+            
+    for li in lines :   #开始逐步过滤
+        l = []
+        flag = 0 #控制过滤人名 1：包含他人人名
+        flag0 = 0 #控制过滤不包含情感极性词的片段 0:一个词都不包含情感极性 1：至少一个包含
+      
+        listt = HanLP.segment(li.strip('\n').decode('utf-8')).toString().strip('[').strip(']').split(',')
+        for item in listt :
+            l.append(item.split('/')[0].encode('utf-8'))
+            if item.strip(' ').split('/')[0].encode('utf-8') in elist :
+    #            print item.strip(' ').split('/')[0]
+                flag0 = 1
+                break
+    
+        linewrite0 = HanLP.parseDependency(li.strip('\n').decode('utf-8'))
+        lineData = linewrite0.toString().encode('utf-8').split('\n')
+        lineData.pop()   
+            
+            
+            
+        if li.strip('\n') in stoplist :#去掉停用词单独行
+            continue
+        if len(li.strip('\n'))<3 or len(li.strip('\n'))>24:#去掉长度为空或大于8的片段#
+            continue
+        if len(li.strip('\n'))== 3 : # 去掉一个字且为非形容词的字
+            if lineData[0].split('\t')[4] != 'ng' and  lineData[0].split('\t')[4] != 'vg':
+                continue
+        if len(lineData) ==1 and lineData[0].split('\t')[3] == 'nh' : # 过滤人名 
+                continue
+        for item in lineData : #去掉内容包括除目标人物外的人物名称行
+            if item.split('\t')[3] == 'nh' and item.split('\t')[1] not in listDict :
+                flag =1
+                break
+        if flag == 1 or flag0 == 0 :
+            continue
+        fF.writelines(li)
+
+    f0.close()
+    fF.close()
+    stopDict.close()
+    
+guolv(fName,'D:\\lmqnlp\\HanLP\\dmLH.txt',elist)
+guolv(fName1,'D:\\lmqnlp\\HanLP\\dmJBR.txt',elist)
+guolv(fName2,'D:\\lmqnlp\\HanLP\\dmMSC.txt',elist)
+
+
+shutdownJVM()
+
+
